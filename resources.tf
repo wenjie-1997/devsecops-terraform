@@ -64,7 +64,7 @@ resource "local_file" "nginx-conf" {
   })
 }
 
-data "digitalocean_ssh_key" "terraform" {
+data "digitalocean_ssh_key" "www-1" {
   name = var.do_ssh_key
 }
 
@@ -75,7 +75,7 @@ resource "digitalocean_droplet" "nginx" {
     size = var.do_size
 
     ssh_keys = [
-        data.data.digitalocean_ssh_key.terraform.id
+        data.data.digitalocean_ssh_key.www-1.id
     ]
   
   connection {

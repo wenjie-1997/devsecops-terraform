@@ -44,12 +44,12 @@ variable do_image {
 
 variable do_size {
     type = string
-    default = "s=lvcpu-512mb-10gb"
+    default = "s-lvcpu-512mb-10gb"
 }
 
 variable do_ssh_key{
     type = string
-    default = "terraform"
+    default = "www-1"
 }
 
 variable ssh_private_key{
