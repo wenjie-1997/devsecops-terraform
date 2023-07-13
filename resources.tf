@@ -1,71 +1,70 @@
 #images
- resource "docker_image" "bgg-database" {
-   name = "chukmunlee/bgg-database:${var.database_version}"
- }
+resource "docker_image" "bgg-database" {
+    name = "chukmunnlee/bgg-database:${var.database_version}"
+}
 
- resource "docker_image" "bgg-backend" {
-    name = "cukmunlee/bgg-backend:${var.backend_version}"
- }
+resource "docker_image" "bgg-backed" {
+    name = "chukmunnlee/bgg-backend:${var.backend_version}"
+}
 
- resource "docker_network" "bgg-network" {
-   name = "${var.app_namespace}-bgg-net"
- }
+resource "docker_network" "bgg-net" {
+    name = "${var.app_namespace}"
+}
 
- resource "docker_volume" "data-vol" {
-   name = "${var.app_namespace}-data-vol"
- }
+resource "docker_volume" "data-vol" {
+    name = "${var.app_namespace}-data-vol"
+}
 
- ## Spin off a container
-
+## Spin off a container
 resource "docker_container" "bgg-database" {
-   name = "${var.app_namespace}-bgg-database"
-   image = docker_image.bgg-database.image_id
+    name = "${var.app_namespace}-bgg-database"
+    image = docker_image.bgg-database.image_id
 
-   networks_advance {
-    name = docker_network.bgg-net.id
-   }
+    networks_advanced {
+        name = docker_network.bgg-net.id
+    }
+    
+    volumes {
+        volume_name = docker_volume.data-vol.name
+        container_path = "/var/lib/mysql"
+    }
 
-   volumes {
-    volume_name = docker_volume.data-vol.name
-    container_path = "/var/lib/mysql"
-   }
-
-   ports {
-    internal = 3306
-    external = 3306
-   }
+    ports {
+        internal = 3306
+        external = 3306
+    }
 }
 
 resource "docker_container" "bgg-backend" {
-  count = var.backend_instance_count
-  name = "${var.app_namespace}-bgg-backend-${count.index}"
-  image = docker_image.bgg-backend.image_id
+    count = var.backend_instance_count
+    name = "${var.app_namespace}-bgg-backend-${count.index}"
+    image = docker_image.bgg-backend.image_id
 
-    networks_advance {
-    name = docker_network.bgg-net.id
-   }
+    networks_advanced {
+        name = docker_network.bgg-net.id
+    }
 
-   env = [
-    "BGG_DO_USER = root",
-    "BGG_DB_PASSWORD = changeit",
-    "BGG_DB_HOST = ${docker_container.bgg-database.name}",
-   ]
+    env = [
+        "BGG_DB_USER=root",
+        "BGG_DB_PASSWORD=changeit",
+        "BGG_DB_HOST=${docker_container.bgg-database.name}",
+    ]
 
     ports {
-    internal = 3000
-   }
+        internal = 3000
+    }
 }
 
 resource "local_file" "nginx-conf" {
-  filename = "nginx.cong"
-  content = templatefile("sample.nginx.conf.tftpl", {
-    docker_host = var.docker_host,
-    ports = docker_container.bgg-backend[*].ports[0].external
-  })
+    filename = "nginx.conf"
+    content = templatefile("sample.nginx.conf.tftpl", {
+        docket_host = var.docker_host,
+        ports = docker_container.bgg-backend[*].ports[0].external
+    })    
 }
 
 data "digitalocean_ssh_key" "www-1" {
-  name = var.do_ssh_key
+    name = var.do_ssh_key
 }
 
 resource "digitalocean_droplet" "nginx" {
@@ -74,36 +73,34 @@ resource "digitalocean_droplet" "nginx" {
     region = var.do_region
     size = var.do_size
 
-    ssh_keys = [
-        data.data.digitalocean_ssh_key.www-1.id
-    ]
-  
-  connection {
-    type = "ssh"
-    user = "root"
-    private_key = file(var.ssh_private_key)
-    host = self.ipv4_address
-  }
+    ssh_keys = [data.data.digitalocean_ssh_key.www-1.id]
 
-  provisioner "remote-exec" {
-    inline = [
-        "apt update -y",
-        "apt upgrade -y",
-        "apt install nginx -y",
-    ]
-  }
+    connection {
+        type = "ssh"
+        user = "root"
+        private_key = file(var.ssh_private_key)
+        host = self.ipv4.address
+    }
 
-  provisioner "file" {
-    source = local_file.nginx-conf.filename
-    destination = "/etc/nginx/nginx.conf"
-  }
+    provisioner "remote-exec" {
+        inline = [
+            "apt update -y",
+            "apt ugrade -y",
+            "apt install nginx -y",
+        ]
+    }
 
-  provisioner "remote-exec" {
-    inline = [
-        "systemctl restart nginx",
-        "systemctl enable nginx",
-    ]
-  }
+    provisioner "file" {
+        source = local_file.nginx-conf.filename
+        destination = "/etc/nginx/nginx.conf"
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "systemctl restart nginx",
+            "systemctl enable nginx",
+        ]
+    }
 }
 
 resource "local_file" "root_at_nginx" {
@@ -117,5 +114,5 @@ output nginx_ip {
 }
 
 output backend_ports {
-  value = docker_container.bgg-backend[*].ports[0].external
+    value = docker_container.bgg-backend[*].ports[0].external
 }
