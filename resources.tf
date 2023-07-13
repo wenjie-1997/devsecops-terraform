@@ -3,12 +3,12 @@ resource "docker_image" "bgg-database" {
     name = "chukmunnlee/bgg-database:${var.database_version}"
 }
 
-resource "docker_image" "bgg-backed" {
+resource "docker_image" "bgg-backend" {
     name = "chukmunnlee/bgg-backend:${var.backend_version}"
 }
 
 resource "docker_network" "bgg-net" {
-    name = "${var.app_namespace}"
+    name = "${var.app_namespace}-bgg-net"
 }
 
 resource "docker_volume" "data-vol" {
@@ -23,7 +23,7 @@ resource "docker_container" "bgg-database" {
     networks_advanced {
         name = docker_network.bgg-net.id
     }
-    
+
     volumes {
         volume_name = docker_volume.data-vol.name
         container_path = "/var/lib/mysql"
@@ -58,9 +58,9 @@ resource "docker_container" "bgg-backend" {
 resource "local_file" "nginx-conf" {
     filename = "nginx.conf"
     content = templatefile("sample.nginx.conf.tftpl", {
-        docket_host = var.docker_host,
+        docker_host = var.docker_host
         ports = docker_container.bgg-backend[*].ports[0].external
-    })    
+    })
 }
 
 data "digitalocean_ssh_key" "www-1" {
@@ -73,22 +73,23 @@ resource "digitalocean_droplet" "nginx" {
     region = var.do_region
     size = var.do_size
 
-    ssh_keys = [data.data.digitalocean_ssh_key.www-1.id]
+    ssh_keys = [ data.digitalocean_ssh_key.www-1.id ]
 
     connection {
         type = "ssh"
         user = "root"
         private_key = file(var.ssh_private_key)
-        host = self.ipv4.address
+        host = self.ipv4_address
     }
 
     provisioner "remote-exec" {
         inline = [
             "apt update -y",
-            "apt ugrade -y",
+            "apt upgrade -y",
             "apt install nginx -y",
         ]
     }
+
 
     provisioner "file" {
         source = local_file.nginx-conf.filename
